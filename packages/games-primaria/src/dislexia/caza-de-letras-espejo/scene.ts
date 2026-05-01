@@ -52,7 +52,9 @@ export class CazaDeLetrasEspejoScene extends BaseScene {
 
   override init(data?: CazaDeLetrasEspejoRuntime): void {
     super.init(data);
-    const cfg = (data ?? this.game.registry.get("runtime")) as CazaDeLetrasEspejoRuntime;
+    // BaseScene ya resolvió el runtime correcto en this.runtime; sólo
+    // narrowmos al tipo del reto para acceder a mode/practiceLevel.
+    const cfg = this.runtime as CazaDeLetrasEspejoRuntime;
     this.mode = cfg.mode;
     this.practiceLevel = cfg.practiceLevel;
     this.onPracticeFinished = cfg.onPracticeFinished;
