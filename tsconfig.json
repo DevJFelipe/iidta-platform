@@ -1,0 +1,4 @@
+{
+  "extends": "@iidta/tsconfig/base.json",
+  "exclude": ["node_modules", "dist", ".next", ".turbo"]
+}
