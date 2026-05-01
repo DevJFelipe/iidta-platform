@@ -1,3 +1,7 @@
-// TODO: PROMPT 2 — exponer engine (BaseScene, ChallengeRunner, NarrativeRunner),
-// scoring (likertMap, rubrics), telemetry, storage (Dexie), consent.
-export {};
+export * from "./scoring";
+export * from "./telemetry";
+export * from "./storage";
+export * from "./engine";
+export * from "./consent";
+export * from "./ui";
+export * from "./registry";

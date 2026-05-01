@@ -18,9 +18,12 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "turbo": "^2.0.0",
+    "adm-zip": "^0.5.17",
+    "glob": "^13.0.6",
     "prettier": "^3.3.3",
     "prettier-plugin-tailwindcss": "^0.6.6",
+    "sharp": "^0.34.5",
+    "turbo": "^2.0.0",
     "typescript": "^5.5.4"
   }
 }
