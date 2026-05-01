@@ -1,3 +1,4 @@
-// TODO: PROMPT 2+ — exponer manifests de los 30 retos de Media
-// (Dislexia B1-B5, Discalculia C1-C5, TDAH A1-A5).
-export {};
+import type { ChallengeManifest } from "@iidta/core/scoring";
+
+// TODO PROMPT 4+: agregar los 30 retos de Media (IIDDA-EM, ítems M-).
+export const MANIFESTS: ChallengeManifest[] = [];

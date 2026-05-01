@@ -1,4 +1,4 @@
-import PhaserGame from "@/app/_components/PhaserGameClient";
+import { PhaserMount } from "@iidta/core/engine";
 
 export const metadata = {
   title: "IIDTA — Phaser bridge demo",
@@ -17,7 +17,7 @@ export default function PhaserDemoPage(): JSX.Element {
       </header>
 
       <section className="mx-auto max-w-4xl">
-        <PhaserGame />
+        <PhaserMount />
       </section>
     </main>
   );

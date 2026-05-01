@@ -42,3 +42,10 @@ yarn-error.log*
 
 # Asset download cache
 /assets-source-cache/
+
+# next-pwa generated service worker (regenerated each build)
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/workbox-*.js
+apps/web/public/workbox-*.js.map
+apps/web/public/fallback-*.js

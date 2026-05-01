@@ -106,7 +106,7 @@ iidta-platform/
 - Fondo: `#FAF7F2` blanco hueso
 - Tipografías: títulos **Fredoka** o **Baloo 2**, cuerpo **Nunito** (Google Fonts)
 - Tamaño base: 18 px (mejor para lectores con dislexia leve)
-- Mascotas: 1 por torre (búho, ardilla, colibrí)
+- Mascotas: 1 por torre (loro "El Loro Sabio" para Letras, ardilla, colibrí)
 
 ### Secundaria (11-15) — "Estación Orbital del Aprendizaje"
 - Paleta: azul espacial `#0F172A` + cian `#06B6D4` + magenta `#D946EF` + amarillo `#FACC15`

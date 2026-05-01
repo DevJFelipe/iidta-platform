@@ -23,8 +23,17 @@ export abstract class BaseScene extends Phaser.Scene {
 
   private diagnosticTimer?: Phaser.Time.TimerEvent;
 
-  init(data: BaseSceneRuntimeConfig): void {
-    this.runtime = data;
+  init(data?: BaseSceneRuntimeConfig): void {
+    // data llega de scene.start(key, data); si no, leemos game.registry
+    // (set por PhaserMount.preBoot al instanciar el Game).
+    const runtime =
+      data ?? (this.game.registry.get("runtime") as BaseSceneRuntimeConfig | undefined);
+    if (!runtime) {
+      throw new Error(
+        "BaseScene.init: missing runtime config — pasalo por scene.start(data) o vía PhaserMount.sceneInitData",
+      );
+    }
+    this.runtime = runtime;
     this.hits = 0;
     this.errors = 0;
     this.attempts = 0;

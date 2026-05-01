@@ -1,3 +1,4 @@
-// TODO: PROMPT 2+ — exponer manifests de los 30 retos de Secundaria
-// (Dislexia D1-D5, Discalculia C1-C5, TDAH T1-T5).
-export {};
+import type { ChallengeManifest } from "@iidta/core/scoring";
+
+// TODO PROMPT 4+: agregar los 30 retos de Secundaria (II-TABAS, ítems S-).
+export const MANIFESTS: ChallengeManifest[] = [];
