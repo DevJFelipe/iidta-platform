@@ -58,10 +58,24 @@ export abstract class BaseScene extends Phaser.Scene {
     });
 
     if (this.runtime.diagnosticMode) {
-      this.diagnosticTimer = this.time.delayedCall(this.runtime.diagnosticDurationSec * 1000, () =>
-        this.endChallenge(),
-      );
+      // +2s de margen sobre la duración planeada. La scene debe terminar el
+      // loop de estímulos por su cuenta antes; este timer es solo safety net
+      // en caso de que el loop se cuelgue. Sin margen, hay race condition
+      // entre el timer y el loop que cierra naturalmente — el timer puede
+      // ganar y perder la metadata específica del reto.
+      const timeoutMs = (this.runtime.diagnosticDurationSec + 2) * 1000;
+      this.diagnosticTimer = this.time.delayedCall(timeoutMs, () => this.endChallenge());
     }
+  }
+
+  /**
+   * Override en subclases para devolver la metadata específica del reto
+   * (targetCount, hits, commissions, omissions, etc.). Se incluye
+   * automáticamente en `raw.metadata` cuando endChallenge() corre, ya sea
+   * por safety timer o por terminación natural del scene.
+   */
+  protected getEndMetadata(): Record<string, unknown> | undefined {
+    return undefined;
   }
 
   protected emit(type: TelemetryEventType, data?: Record<string, unknown>): void {
@@ -97,6 +111,11 @@ export abstract class BaseScene extends Phaser.Scene {
     this.ended = true;
     this.diagnosticTimer?.remove();
 
+    // Si el caller no pasa metadata explícita, pedimos a la subclase la suya
+    // vía getEndMetadata(). Garantiza que ambas vías de finalización
+    // (timer safety y terminación natural) producen el mismo raw.metadata.
+    const metadata = extraMeta ?? this.getEndMetadata();
+
     const raw: ChallengeRawResult = {
       challengeId: this.runtime.challengeId,
       studentCode: this.runtime.studentCode,
@@ -107,7 +126,7 @@ export abstract class BaseScene extends Phaser.Scene {
       errors: this.errors,
       attempts: this.attempts,
       responseTimes: [...this.responseTimes],
-      metadata: extraMeta,
+      metadata,
     };
 
     this.emit("challenge_ended", { hits: this.hits, errors: this.errors });

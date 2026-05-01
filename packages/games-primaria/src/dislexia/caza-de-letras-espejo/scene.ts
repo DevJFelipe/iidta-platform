@@ -118,10 +118,17 @@ export class CazaDeLetrasEspejoScene extends BaseScene {
       await this.presentLetterStimulus(s, DIAGNOSTIC.intervalMs, /* rotated */ false);
     }
 
-    if (!this.ended) this.endDiagnostic();
+    if (!this.ended) this.endChallenge();
   }
 
-  private endDiagnostic(): void {
+  /**
+   * Devuelve la metadata diagnóstica que la rúbrica necesita. BaseScene la
+   * inyecta en raw.metadata tanto si endChallenge se dispara por safety
+   * timer como por terminación natural del loop.
+   */
+  protected override getEndMetadata(): Record<string, unknown> | undefined {
+    if (this.mode !== "diagnostic") return undefined;
+
     const meanRTms =
       this.responseTimes.length > 0
         ? this.responseTimes.reduce((a, b) => a + b, 0) / this.responseTimes.length
@@ -137,7 +144,7 @@ export class CazaDeLetrasEspejoScene extends BaseScene {
       meanRTms,
     };
 
-    this.endChallenge(meta as unknown as Record<string, unknown>);
+    return meta as unknown as Record<string, unknown>;
   }
 
   // ---------------- Practice ----------------
