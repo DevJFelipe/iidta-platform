@@ -21,7 +21,7 @@ export abstract class BaseScene extends Phaser.Scene {
   protected startedAt = 0;
   protected ended = false;
 
-  private diagnosticTimer?: Phaser.Time.TimerEvent;
+  protected diagnosticTimer?: Phaser.Time.TimerEvent;
 
   init(data?: BaseSceneRuntimeConfig): void {
     // Phaser pasa `{}` por defecto a init() para escenas auto-iniciadas, NO
@@ -58,13 +58,35 @@ export abstract class BaseScene extends Phaser.Scene {
     });
 
     if (this.runtime.diagnosticMode) {
-      // +2s de margen sobre la duración planeada. La scene debe terminar el
-      // loop de estímulos por su cuenta antes; este timer es solo safety net
-      // en caso de que el loop se cuelgue. Sin margen, hay race condition
-      // entre el timer y el loop que cierra naturalmente — el timer puede
-      // ganar y perder la metadata específica del reto.
-      const timeoutMs = (this.runtime.diagnosticDurationSec + 2) * 1000;
-      this.diagnosticTimer = this.time.delayedCall(timeoutMs, () => this.endChallenge());
+      this.armDiagnosticSafetyTimer();
+    }
+  }
+
+  /**
+   * Programa el safety timer del diagnóstico. Se puede llamar de nuevo (p.ej.
+   * tras un countdown de intro) para resetear y empezar a contar desde ese
+   * momento — útil para que el HUD timer y el safety net queden sincronizados
+   * con la fase activa real, no con el `create()` que corre antes del countdown.
+   *
+   * +2s de margen sobre la duración planeada: la scene debería terminar el
+   * loop de estímulos por su cuenta antes; este timer es solo red de seguridad.
+   */
+  protected armDiagnosticSafetyTimer(): void {
+    this.diagnosticTimer?.remove();
+    const timeoutMs = (this.runtime.diagnosticDurationSec + 2) * 1000;
+    this.diagnosticTimer = this.time.delayedCall(timeoutMs, () => this.endChallenge());
+  }
+
+  /**
+   * Marca el inicio efectivo de la fase activa (post-countdown). Resetea el
+   * reloj para que el HUD timer y el safety net midan tiempo desde aquí, en
+   * lugar de desde `create()`. Llamar después del countdown intro y antes
+   * del primer estímulo.
+   */
+  protected restartActiveClock(): void {
+    this.startedAt = Date.now();
+    if (this.runtime.diagnosticMode) {
+      this.armDiagnosticSafetyTimer();
     }
   }
 

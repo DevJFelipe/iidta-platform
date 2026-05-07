@@ -16,6 +16,10 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      fontFamily: {
+        fredoka: ['"Fredoka"', "system-ui", "sans-serif"],
+        nunito: ['"Nunito"', "system-ui", "sans-serif"],
+      },
     },
   },
   plugins: [],

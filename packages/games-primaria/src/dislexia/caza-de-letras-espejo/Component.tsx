@@ -15,6 +15,17 @@ import { ASSETS } from "./assets";
 import { META, PRACTICE_LEVEL_TITLES, type PracticeLevel } from "./config";
 import type { CazaDeLetrasEspejoRuntime } from "./scene";
 
+// Mensaje siempre positivo independiente del Likert. NUNCA etiquetar al niño
+// como "con dificultad"; el indicador clínico es para investigadoras.
+const MOTIVATIONAL_MESSAGE: Record<LikertScore, string> = {
+  0: "¡Eres un héroe de las letras!",
+  1: "¡Muy bien hecho, sigue así!",
+  2: "¡Buen intento! Vamos a practicar más.",
+  3: "¡Cada intento te hace más fuerte!",
+};
+
+type Stars = 1 | 2 | 3;
+
 type Phase =
   | "intro"
   | "diagnostic"
@@ -31,6 +42,7 @@ interface PracticeSummary {
   hits: number;
   errors: number;
   meanRTms: number;
+  stars: Stars;
 }
 
 const loadCazaScenes = async (): Promise<unknown[]> => {
@@ -46,6 +58,8 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   const [diagLikert, setDiagLikert] = useState<LikertScore | null>(null);
   const [activePracticeLevel, setActivePracticeLevel] = useState<PracticeLevel | null>(null);
   const [practiceSummary, setPracticeSummary] = useState<PracticeSummary | null>(null);
+  // Acumula la mejor cantidad de estrellas obtenidas por nivel.
+  const [practiceStars, setPracticeStars] = useState<Map<PracticeLevel, Stars>>(new Map());
 
   const telemetry = useMemo(
     () => new TelemetryClient({ endpoint: "/api/telemetry", maxBatchSize: 30 }),
@@ -79,9 +93,15 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   );
 
   const handlePracticeFinished = useCallback(
-    (summary: { hits: number; errors: number; meanRTms: number }) => {
+    (summary: { hits: number; errors: number; meanRTms: number; stars: Stars }) => {
       if (activePracticeLevel == null) return;
       setPracticeSummary({ level: activePracticeLevel, ...summary });
+      setPracticeStars((prev) => {
+        const next = new Map(prev);
+        const previous = next.get(activePracticeLevel) ?? 0;
+        if (summary.stars > previous) next.set(activePracticeLevel, summary.stars);
+        return next;
+      });
       setPhase("practice-result");
     },
     [activePracticeLevel],
@@ -206,7 +226,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
       <PracticeMenu
         onSelect={startPractice}
         onDone={() => setPhase("done")}
-        completedLevels={practiceSummary ? new Set([practiceSummary.level]) : new Set()}
+        practiceStars={practiceStars}
       />
     );
   }
@@ -254,7 +274,7 @@ function ChallengeShell({
     <main className="min-h-screen bg-[#FAF7F2] p-4 sm:p-8">
       <header className="mx-auto mb-4 max-w-4xl">
         <p className="text-xs uppercase tracking-wide text-indigo-600">Torre de las Letras</p>
-        <h1 className="text-xl font-semibold text-neutral-900">{title}</h1>
+        <h1 className="font-fredoka text-xl font-semibold text-neutral-900">{title}</h1>
       </header>
       <section className="mx-auto max-w-4xl">{children}</section>
     </main>
@@ -265,7 +285,7 @@ function IntroScreen({ onStart }: { onStart: () => void }): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 bg-[#FAF7F2] p-6 text-center">
       <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-32 w-32" />
-      <h1 className="text-3xl font-bold text-indigo-700">{META.title}</h1>
+      <h1 className="font-fredoka text-3xl font-bold text-indigo-700">{META.title}</h1>
       <p className="text-base text-neutral-700">
         ¡Hola! Soy <strong>El Loro Sabio</strong>. Vamos a hacer un juego rápido.
       </p>
@@ -308,11 +328,38 @@ function ResultScreen({
       : 0;
   const meta = raw.metadata as { commissions?: number; omissions?: number } | undefined;
 
+  // Confetti al montar la pantalla. Dynamic import porque canvas-confetti
+  // toca `document` y rompe SSR si se importa en top-level.
+  useEffect(() => {
+    let cancelled = false;
+    void import("canvas-confetti").then(({ default: confetti }) => {
+      if (cancelled) return;
+      const particleCount = likert <= 2 ? 90 : 50;
+      confetti({
+        particleCount,
+        spread: 75,
+        startVelocity: 35,
+        origin: { y: 0.55 },
+        colors: ["#4F46E5", "#10B981", "#F59E0B", "#F97316"],
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [likert]);
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-5 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-24 w-24" />
-      <h1 className="text-2xl font-bold text-indigo-700">¡Listo!</h1>
-      <p className="text-sm text-neutral-600">Esto es lo que vimos en tu sesión:</p>
+      <img
+        src={ASSETS.mascot}
+        alt="El Loro Sabio"
+        className="h-48 w-48 animate-[bounce_2s_ease-in-out_infinite]"
+      />
+      <h1 className="font-fredoka text-3xl font-bold text-indigo-700">¡Listo!</h1>
+
+      <p className="font-fredoka text-center text-2xl font-bold text-emerald-600">
+        {MOTIVATIONAL_MESSAGE[likert]}
+      </p>
 
       <div className="grid w-full grid-cols-2 gap-4">
         <Stat label="Aciertos" value={raw.hits} />
@@ -429,40 +476,46 @@ function Likert5Picker({
 function PracticeMenu({
   onSelect,
   onDone,
-  completedLevels,
+  practiceStars,
 }: {
   onSelect: (level: PracticeLevel) => void;
   onDone: () => void;
-  completedLevels: Set<PracticeLevel>;
+  practiceStars: Map<PracticeLevel, Stars>;
 }): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 bg-[#FAF7F2] p-6">
       <img src={ASSETS.mascot} alt="El Loro Sabio" className="mx-auto h-24 w-24" />
-      <h2 className="text-center text-xl font-bold text-indigo-700">¡Buen trabajo!</h2>
+      <h2 className="font-fredoka text-center text-xl font-bold text-indigo-700">¡Buen trabajo!</h2>
       <p className="text-center text-sm text-neutral-600">
         ¿Querés practicar más? Estos niveles son solo para divertirte y NO afectan tu resultado.
       </p>
 
       <div className="grid grid-cols-1 gap-2">
-        {([1, 2, 3, 4, 5] as const).map((level) => (
-          <button
-            key={level}
-            type="button"
-            onClick={() => onSelect(level)}
-            className={`flex items-center justify-between rounded-md border px-4 py-3 text-left ${
-              completedLevels.has(level)
-                ? "border-emerald-300 bg-emerald-50"
-                : "border-neutral-300 bg-white"
-            } hover:border-indigo-400`}
-          >
-            <span className="text-sm font-medium text-neutral-800">
-              {PRACTICE_LEVEL_TITLES[level]}
-            </span>
-            <span className="text-xs text-neutral-500">
-              {completedLevels.has(level) ? "✓" : "→"}
-            </span>
-          </button>
-        ))}
+        {([1, 2, 3, 4, 5] as const).map((level) => {
+          const stars = practiceStars.get(level);
+          const completed = stars != null;
+          return (
+            <button
+              key={level}
+              type="button"
+              onClick={() => onSelect(level)}
+              className={`flex items-center justify-between rounded-md border px-4 py-3 text-left ${
+                completed
+                  ? "border-amber-300 bg-amber-50"
+                  : "border-neutral-300 bg-white"
+              } hover:border-indigo-400`}
+            >
+              <span className="text-sm font-medium text-neutral-800">
+                {PRACTICE_LEVEL_TITLES[level]}
+              </span>
+              {completed ? (
+                <StarRow stars={stars} size="sm" />
+              ) : (
+                <span className="text-xs text-neutral-500">→</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <button
@@ -476,6 +529,19 @@ function PracticeMenu({
   );
 }
 
+function StarRow({ stars, size = "md" }: { stars: Stars; size?: "sm" | "md" | "lg" }): JSX.Element {
+  const sizeClass = size === "lg" ? "text-5xl" : size === "md" ? "text-3xl" : "text-base";
+  return (
+    <span className={`inline-flex gap-1 ${sizeClass}`} aria-label={`${stars} de 3 estrellas`}>
+      {[1, 2, 3].map((i) => (
+        <span key={i} className={i <= stars ? "text-amber-400" : "text-neutral-300"}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function PracticeResultScreen({
   summary,
   onContinue,
@@ -486,8 +552,9 @@ function PracticeResultScreen({
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#FAF7F2] p-6">
       <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-20 w-20" />
-      <h2 className="text-xl font-bold text-emerald-700">¡Nivel completado!</h2>
+      <h2 className="font-fredoka text-xl font-bold text-emerald-700">¡Nivel completado!</h2>
       <p className="text-sm text-neutral-600">{PRACTICE_LEVEL_TITLES[summary.level]}</p>
+      <StarRow stars={summary.stars} size="lg" />
       <div className="grid w-full grid-cols-2 gap-3">
         <Stat label="Aciertos" value={summary.hits} />
         <Stat label="Errores" value={summary.errors} />
@@ -507,7 +574,7 @@ function DoneScreen(): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#FAF7F2] p-6 text-center">
       <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-32 w-32" />
-      <h1 className="text-2xl font-bold text-indigo-700">¡Gracias por jugar!</h1>
+      <h1 className="font-fredoka text-2xl font-bold text-indigo-700">¡Gracias por jugar!</h1>
       <p className="text-base text-neutral-700">
         El Loro Sabio guardó tu sesión. Podés cerrar esta pestaña.
       </p>

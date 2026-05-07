@@ -13,6 +13,11 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+// Fredoka/Nunito (primaria) se cargan desde el CDN de Google Fonts en el <head>
+// con su nombre canónico, no como `__Fredoka_<hash>`. Esto permite que el canvas
+// Phaser use `font-family: "Fredoka"` directamente desde la scene. La penalty
+// de no auto-hospedar es aceptable para piloto; Workbox cachea ambos recursos.
+
 export const metadata: Metadata = {
   title: "IIDTA Platform",
   description:
@@ -39,6 +44,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap"
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
     </html>
   );

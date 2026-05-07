@@ -1,9 +1,4 @@
-import {
-  likertMap,
-  type ChallengeRawResult,
-  type LikertScore,
-  type NormStats,
-} from "@iidta/core/scoring";
+import type { ChallengeRawResult, LikertScore } from "@iidta/core/scoring";
 
 /**
  * Metadata específico que la scene del reto inyecta en `raw.metadata`
@@ -23,15 +18,15 @@ export interface CazaDeLetrasEspejoMeta {
  * Rúbrica P-DI-01 (ítem A1, dislexia primaria).
  *
  * Fórmula: balanced accuracy = (hitRate + (1 - commissionRate)) / 2.
- * Rango [0, 1], donde 1 = desempeño perfecto y 0 = peor caso (todas las
- * comisiones, cero hits).
+ * Rango [0, 1], donde 1 = desempeño perfecto y 0 = peor caso.
  *
- * TODO PROMPT 5+ (post-piloto):
- * Tras 50 estudiantes piloto USCO/UDES, evaluar migración a d-prime
- * (z(hitRate) - z(falseAlarmRate)). La firma de `LikertRubric` queda
- * compatible — solo cambia la transformación interna de raw → composite.
+ * PROVISIONAL: estos umbrales deben recalibrarse con z-score contra la
+ * norma piloto de los primeros 50 estudiantes (RF-22). Ver issue de
+ * calibración después del piloto.
  *
- * Norma actual: provisional, basada en CLAUDE.md.
+ * TODO PROMPT 5+: tras 50 estudiantes piloto USCO/UDES, evaluar migración
+ * a d-prime (z(hitRate) - z(falseAlarmRate)). La firma de `LikertRubric`
+ * queda compatible — solo cambia la transformación interna de raw → composite.
  */
 export function rubricCazaDeLetrasEspejo(raw: ChallengeRawResult): LikertScore {
   const meta = raw.metadata as CazaDeLetrasEspejoMeta | undefined;
@@ -47,16 +42,8 @@ export function rubricCazaDeLetrasEspejo(raw: ChallengeRawResult): LikertScore {
 
   const balancedAccuracy = (hitRate + (1 - commissionRate)) / 2;
 
-  // Norma provisional para A1 — refinar con datos del piloto USCO/UDES.
-  // mean=0.75 asume que un estudiante típico de primaria detecta ~80% de
-  // targets con ~10% de comisiones. stdDev=0.15 captura la dispersión esperada.
-  const norm: NormStats = {
-    itemCode: "A1",
-    mean: 0.75,
-    stdDev: 0.15,
-    n: 0,
-    source: "provisional",
-  };
-
-  return likertMap(balancedAccuracy, norm);
+  if (balancedAccuracy >= 0.85) return 0;
+  if (balancedAccuracy >= 0.7) return 1;
+  if (balancedAccuracy >= 0.55) return 2;
+  return 3;
 }

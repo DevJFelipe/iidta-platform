@@ -21,12 +21,32 @@ export interface PhaserMountProps {
   sceneInitData?: unknown;
   backgroundColor?: string;
   className?: string;
+  /**
+   * Fuentes a precargar antes de inicializar Phaser. Canvas2D no espera a
+   * `next/font` por sí solo; sin esto, los primeros estímulos se pintan con
+   * el fallback del sistema. Usa la sintaxis short-hand de CSS, p.ej.
+   * `["bold 1em Fredoka", "1em Nunito"]`.
+   */
+  preloadFonts?: readonly string[];
 }
 
 const defaultLoadScenes = async (): Promise<unknown[]> => {
   const { HelloWorldScene } = await import("./scenes");
   return [HelloWorldScene];
 };
+
+const DEFAULT_PRELOAD_FONTS: readonly string[] = ["bold 1em Fredoka", "1em Nunito"];
+
+async function ensureFontsReady(fonts: readonly string[]): Promise<void> {
+  if (typeof document === "undefined" || !("fonts" in document)) return;
+  try {
+    await Promise.all(fonts.map((f) => document.fonts.load(f)));
+    await document.fonts.ready;
+  } catch {
+    // Si la fuente no está disponible (offline, etc.), Phaser cae al fallback
+    // del fontFamily declarado por la scene. No bloqueamos el reto por esto.
+  }
+}
 
 export function PhaserMount({
   width = 800,
@@ -35,6 +55,7 @@ export function PhaserMount({
   sceneInitData,
   backgroundColor = "#FAF7F2",
   className = "mx-auto overflow-hidden rounded-lg shadow-lg",
+  preloadFonts = DEFAULT_PRELOAD_FONTS,
 }: PhaserMountProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<PhaserNS.Game | null>(null);
@@ -45,7 +66,11 @@ export function PhaserMount({
     if (!parent) return;
 
     void (async () => {
-      const [Phaser, scenes] = await Promise.all([import("phaser"), loadScenes()]);
+      const [Phaser, scenes] = await Promise.all([
+        import("phaser"),
+        loadScenes(),
+        ensureFontsReady(preloadFonts),
+      ]);
       if (cancelled) return;
 
       gameRef.current = new Phaser.Game({
@@ -75,13 +100,17 @@ export function PhaserMount({
       gameRef.current?.destroy(true, false);
       gameRef.current = null;
     };
-  }, [width, height, loadScenes, sceneInitData, backgroundColor]);
+  }, [width, height, loadScenes, sceneInitData, backgroundColor, preloadFonts]);
 
   return (
     <div
       ref={containerRef}
       className={className}
-      style={{ width, height }}
+      style={{
+        width: "100%",
+        maxWidth: width,
+        aspectRatio: `${width} / ${height}`,
+      }}
       data-testid="phaser-mount"
     />
   );

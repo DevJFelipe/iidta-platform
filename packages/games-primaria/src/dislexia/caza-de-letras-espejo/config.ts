@@ -59,23 +59,29 @@ export type LevelConfig = LetterHuntRound | WordHuntRound | CompositeRound;
 
 export type PracticeLevel = 1 | 2 | 3 | 4 | 5;
 
+// IMPORTANTE: estos niveles son MOTIVACIONALES y NO afectan el puntaje
+// Likert. Solo la sección DIAGNOSTIC arriba produce el score psicométrico.
+// Aquí ajustamos duraciones para que cada nivel ronde los 30 s (45 s el 5).
 export const PRACTICE_LEVELS: Record<PracticeLevel, LevelConfig> = {
+  // Nivel 1 — Calentamiento: target estable, 2 distractores, ~30 s
   1: {
     type: "letter-hunt",
     distractorCount: 2,
     rotationDeg: 0,
-    intervalMs: 2500,
-    totalStimuli: 20,
+    intervalMs: 2000,
+    totalStimuli: 15,
     targetRatio: 0.4,
   },
+  // Nivel 2 — Letras volteadas: 4 distractores, rotación 90°, ~30 s
   2: {
     type: "letter-hunt",
     distractorCount: 4,
     rotationDeg: 90,
-    intervalMs: 2000,
-    totalStimuli: 20,
+    intervalMs: 1700,
+    totalStimuli: 18,
     targetRatio: 0.4,
   },
+  // Nivel 3 — Buscando en palabras: word-hunt (10 palabras × 3.5 s), ~35 s
   3: {
     type: "word-hunt",
     words: [
@@ -92,14 +98,17 @@ export const PRACTICE_LEVELS: Record<PracticeLevel, LevelConfig> = {
     ],
     targetLetter: TARGET_LETTER,
   },
+  // Nivel 4 — Velocidad: presión de tiempo, intervalMs 700 ms (500 ms es
+  // demasiado rápido incluso para adultos en tareas Go/No-Go), ~28 s
   4: {
     type: "letter-hunt",
     distractorCount: 3,
     rotationDeg: 0,
-    intervalMs: 500,
-    totalStimuli: 20,
+    intervalMs: 700,
+    totalStimuli: 40,
     targetRatio: 0.5,
   },
+  // Nivel 5 — Desafío final: combinación de los niveles anteriores, ~45 s
   5: {
     type: "composite",
     rounds: [
@@ -108,7 +117,7 @@ export const PRACTICE_LEVELS: Record<PracticeLevel, LevelConfig> = {
         distractorCount: 4,
         rotationDeg: 90,
         intervalMs: 1500,
-        totalStimuli: 10,
+        totalStimuli: 15,
         targetRatio: 0.4,
       },
       {
@@ -121,7 +130,7 @@ export const PRACTICE_LEVELS: Record<PracticeLevel, LevelConfig> = {
         distractorCount: 4,
         rotationDeg: 0,
         intervalMs: 800,
-        totalStimuli: 10,
+        totalStimuli: 15,
         targetRatio: 0.5,
       },
     ],
