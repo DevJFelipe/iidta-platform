@@ -26,5 +26,5 @@ export default function RetoPage({ params }: RetoPageProps): JSX.Element {
 
   // No pasamos el manifest al cliente (contiene funciones — no serializable).
   // Solo el id; el cliente hace su propio findManifest.
-  return <RetoRunner manifestId={manifest.id} />;
+  return <RetoRunner manifestId={manifest.id} level={level} />;
 }

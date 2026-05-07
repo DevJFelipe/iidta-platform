@@ -13,7 +13,7 @@ import { enqueueResult } from "@iidta/core/storage";
 import { PhaserMount } from "@iidta/core/engine";
 import { ASSETS } from "./assets";
 import { META, PRACTICE_LEVEL_TITLES, type PracticeLevel } from "./config";
-import type { CazaDeLetrasEspejoRuntime } from "./scene";
+import type { SemaforoImpulsosRuntime } from "./scene";
 
 type Phase =
   | "intro"
@@ -33,12 +33,12 @@ interface PracticeSummary {
   meanRTms: number;
 }
 
-const loadCazaScenes = async (): Promise<unknown[]> => {
-  const { CazaDeLetrasEspejoScene } = await import("./scene");
-  return [CazaDeLetrasEspejoScene];
+const loadSemaforoScenes = async (): Promise<unknown[]> => {
+  const { SemaforoImpulsosScene } = await import("./scene");
+  return [SemaforoImpulsosScene];
 };
 
-export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX.Element | null {
+export function SemaforoImpulsosComponent(props: ChallengeComponentProps): JSX.Element | null {
   const { manifest, studentCode, sessionId, onComplete, onTelemetry } = props;
 
   const [phase, setPhase] = useState<Phase>("intro");
@@ -46,6 +46,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   const [diagLikert, setDiagLikert] = useState<LikertScore | null>(null);
   const [activePracticeLevel, setActivePracticeLevel] = useState<PracticeLevel | null>(null);
   const [practiceSummary, setPracticeSummary] = useState<PracticeSummary | null>(null);
+  const [completedLevels, setCompletedLevels] = useState<Set<PracticeLevel>>(new Set());
 
   const telemetry = useMemo(
     () => new TelemetryClient({ endpoint: "/api/telemetry", maxBatchSize: 30 }),
@@ -82,12 +83,13 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
     (summary: { hits: number; errors: number; meanRTms: number }) => {
       if (activePracticeLevel == null) return;
       setPracticeSummary({ level: activePracticeLevel, ...summary });
+      setCompletedLevels((prev) => new Set([...prev, activePracticeLevel]));
       setPhase("practice-result");
     },
     [activePracticeLevel],
   );
 
-  const diagnosticInitData = useMemo<CazaDeLetrasEspejoRuntime>(
+  const diagnosticInitData = useMemo<SemaforoImpulsosRuntime>(
     () => ({
       challengeId: manifest.id,
       studentCode,
@@ -108,7 +110,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
     ],
   );
 
-  const practiceInitData = useMemo<CazaDeLetrasEspejoRuntime | null>(() => {
+  const practiceInitData = useMemo<SemaforoImpulsosRuntime | null>(() => {
     if (activePracticeLevel == null) return null;
     return {
       challengeId: manifest.id,
@@ -152,14 +154,14 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
         attemptCount: 1,
       });
     } catch (e) {
-      console.warn("[caza-de-letras] enqueueResult failed (continuando)", e);
+      console.warn("[semaforo-de-impulsos] enqueueResult failed (continuando)", e);
     }
 
     fetch("/api/challenge/result", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ raw: finalRaw, likertScore: diagLikert }),
-    }).catch((e) => console.warn("[caza-de-letras] POST result failed", e));
+    }).catch((e) => console.warn("[semaforo-de-impulsos] POST result failed", e));
 
     onComplete(finalRaw);
     telemetry.flush().catch(() => {});
@@ -180,7 +182,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   if (phase === "diagnostic") {
     return (
       <ChallengeShell title={META.title}>
-        <PhaserMount loadScenes={loadCazaScenes} sceneInitData={diagnosticInitData} />
+        <PhaserMount loadScenes={loadSemaforoScenes} sceneInitData={diagnosticInitData} />
       </ChallengeShell>
     );
   }
@@ -208,7 +210,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
       <PracticeMenu
         onSelect={startPractice}
         onDone={() => setPhase("done")}
-        completedLevels={practiceSummary ? new Set([practiceSummary.level]) : new Set()}
+        completedLevels={completedLevels}
       />
     );
   }
@@ -216,7 +218,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   if (phase === "practice-running" && practiceInitData) {
     return (
       <ChallengeShell title={`${META.title} · ${PRACTICE_LEVEL_TITLES[activePracticeLevel!]}`}>
-        <PhaserMount loadScenes={loadCazaScenes} sceneInitData={practiceInitData} />
+        <PhaserMount loadScenes={loadSemaforoScenes} sceneInitData={practiceInitData} />
       </ChallengeShell>
     );
   }
@@ -242,7 +244,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
 }
 
 // ============================================================================
-// Subcomponentes inline
+// Subcomponentes inline — Estética Torre del Enfoque (coral + blanco hueso)
 // ============================================================================
 
 function ChallengeShell({
@@ -255,7 +257,7 @@ function ChallengeShell({
   return (
     <main className="min-h-screen bg-[#FAF7F2] p-4 sm:p-8">
       <header className="mx-auto mb-4 max-w-4xl">
-        <p className="text-xs uppercase tracking-wide text-indigo-600">Torre de las Letras</p>
+        <p className="text-xs uppercase tracking-wide text-orange-600">Torre del Enfoque</p>
         <h1 className="font-fredoka text-xl font-semibold text-neutral-900">{title}</h1>
       </header>
       <section className="mx-auto max-w-4xl">{children}</section>
@@ -266,28 +268,28 @@ function ChallengeShell({
 function IntroScreen({ onStart }: { onStart: () => void }): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 bg-[#FAF7F2] p-6 text-center">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-32 w-32" />
-      <h1 className="font-fredoka text-3xl font-bold text-indigo-700">{META.title}</h1>
+      <img src={ASSETS.mascot} alt="Mono Mensajero" className="h-32 w-32" />
+      <h1 className="font-fredoka text-3xl font-bold text-orange-600">{META.title}</h1>
       <p className="text-base text-neutral-700">
-        ¡Hola! Soy <strong>El Loro Sabio</strong>. Vamos a hacer un juego rápido.
+        ¡Hola! Soy el <strong>Mono Mensajero</strong>. Necesito ayuda para entregar cartas.
       </p>
       <div className="rounded-lg bg-white p-6 text-left shadow-sm">
         <p className="mb-3 font-medium text-neutral-800">Reglas:</p>
         <ul className="space-y-2 text-sm text-neutral-700">
-          <li>👀 Vas a ver letras aparecer una a una.</li>
+          <li>🚦 Vas a ver un semáforo. Mira bien qué luz prende.</li>
           <li>
-            👇 Toca <strong>solo cuando veas la letra B</strong>.
+            🟢 <strong>Verde</strong>: toca el semáforo rápido. ¡A entregar!
           </li>
           <li>
-            ⛔ <strong>NO toques</strong> si ves d, p o q. ¡Se parecen pero no son!
+            🔴 <strong>Rojo</strong>: NO toques. Quédate quieto, no es momento.
           </li>
-          <li>⏱️ Dura 3 minutos. Va lento, tómate tu tiempo.</li>
+          <li>⏱️ Dura 3 minutos. Lo más importante NO es la velocidad: es no equivocarse.</li>
         </ul>
       </div>
       <button
         type="button"
         onClick={onStart}
-        className="rounded-md bg-indigo-600 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        className="rounded-md bg-orange-500 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-300"
       >
         ¡Empezar!
       </button>
@@ -312,8 +314,8 @@ function ResultScreen({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-5 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-24 w-24" />
-      <h1 className="font-fredoka text-2xl font-bold text-indigo-700">¡Listo!</h1>
+      <img src={ASSETS.mascot} alt="Mono Mensajero" className="h-24 w-24" />
+      <h1 className="font-fredoka text-2xl font-bold text-orange-600">¡Listo!</h1>
       <p className="text-sm text-neutral-600">Esto es lo que vimos en tu sesión:</p>
 
       <div className="grid w-full grid-cols-2 gap-4">
@@ -325,14 +327,14 @@ function ResultScreen({
 
       <div className="mt-2 rounded-lg bg-white p-4 text-center shadow-sm">
         <p className="text-xs uppercase tracking-wide text-neutral-500">Indicador (provisional)</p>
-        <p className="mt-1 text-3xl font-bold text-indigo-700">{LIKERT_LABELS[likert]}</p>
+        <p className="mt-1 text-3xl font-bold text-orange-600">{LIKERT_LABELS[likert]}</p>
         <p className="mt-1 text-xs text-neutral-500">Likert {likert}/3</p>
       </div>
 
       <button
         type="button"
         onClick={onContinue}
-        className="mt-2 rounded-md bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+        className="mt-2 rounded-md bg-orange-500 px-6 py-2 text-sm font-semibold text-white hover:bg-orange-600"
       >
         Continuar
       </button>
@@ -380,7 +382,7 @@ function FeedbackScreen({
       <button
         type="button"
         onClick={() => onSubmit({ difficulty, enjoyment })}
-        className="mt-2 rounded-md bg-indigo-600 px-6 py-3 text-base font-semibold text-white hover:bg-indigo-700"
+        className="mt-2 rounded-md bg-orange-500 px-6 py-3 text-base font-semibold text-white hover:bg-orange-600"
       >
         Enviar
       </button>
@@ -412,7 +414,7 @@ function Likert5Picker({
             onClick={() => onChange(v)}
             className={`flex-1 rounded-md border px-3 py-3 text-base font-semibold ${
               value === v
-                ? "border-indigo-600 bg-indigo-600 text-white"
+                ? "border-orange-500 bg-orange-500 text-white"
                 : "border-neutral-300 bg-white text-neutral-700"
             }`}
           >
@@ -439,8 +441,8 @@ function PracticeMenu({
 }): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="mx-auto h-24 w-24" />
-      <h2 className="font-fredoka text-center text-xl font-bold text-indigo-700">¡Buen trabajo!</h2>
+      <img src={ASSETS.mascot} alt="Mono Mensajero" className="mx-auto h-24 w-24" />
+      <h2 className="font-fredoka text-center text-xl font-bold text-orange-600">¡Buen trabajo!</h2>
       <p className="text-center text-sm text-neutral-600">
         ¿Quieres practicar más? Estos niveles son solo para divertirte y NO afectan tu resultado.
       </p>
@@ -455,7 +457,7 @@ function PracticeMenu({
               completedLevels.has(level)
                 ? "border-emerald-300 bg-emerald-50"
                 : "border-neutral-300 bg-white"
-            } hover:border-indigo-400`}
+            } hover:border-orange-400`}
           >
             <span className="text-sm font-medium text-neutral-800">
               {PRACTICE_LEVEL_TITLES[level]}
@@ -487,7 +489,7 @@ function PracticeResultScreen({
 }): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-20 w-20" />
+      <img src={ASSETS.mascot} alt="Mono Mensajero" className="h-20 w-20" />
       <h2 className="font-fredoka text-xl font-bold text-emerald-700">¡Nivel completado!</h2>
       <p className="text-sm text-neutral-600">{PRACTICE_LEVEL_TITLES[summary.level]}</p>
       <div className="grid w-full grid-cols-2 gap-3">
@@ -497,7 +499,7 @@ function PracticeResultScreen({
       <button
         type="button"
         onClick={onContinue}
-        className="mt-2 rounded-md bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+        className="mt-2 rounded-md bg-orange-500 px-6 py-2 text-sm font-semibold text-white hover:bg-orange-600"
       >
         Volver al menú
       </button>
@@ -508,10 +510,10 @@ function PracticeResultScreen({
 function DoneScreen(): JSX.Element {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#FAF7F2] p-6 text-center">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-32 w-32" />
-      <h1 className="font-fredoka text-2xl font-bold text-indigo-700">¡Gracias por jugar!</h1>
+      <img src={ASSETS.mascot} alt="Mono Mensajero" className="h-32 w-32" />
+      <h1 className="font-fredoka text-2xl font-bold text-orange-600">¡Gracias por jugar!</h1>
       <p className="text-base text-neutral-700">
-        El Loro Sabio guardó tu sesión. Puedes cerrar esta pestaña.
+        El Mono Mensajero guardó tu sesión. Puedes cerrar esta pestaña.
       </p>
     </main>
   );

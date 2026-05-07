@@ -13,7 +13,7 @@ import { enqueueResult } from "@iidta/core/storage";
 import { PhaserMount } from "@iidta/core/engine";
 import { ASSETS } from "./assets";
 import { META, PRACTICE_LEVEL_TITLES, type PracticeLevel } from "./config";
-import type { CazaDeLetrasEspejoRuntime } from "./scene";
+import type { LineaNumericaRuntime } from "./scene";
 
 type Phase =
   | "intro"
@@ -33,12 +33,14 @@ interface PracticeSummary {
   meanRTms: number;
 }
 
-const loadCazaScenes = async (): Promise<unknown[]> => {
-  const { CazaDeLetrasEspejoScene } = await import("./scene");
-  return [CazaDeLetrasEspejoScene];
+const loadLineaScenes = async (): Promise<unknown[]> => {
+  const { LineaNumericaScene } = await import("./scene");
+  return [LineaNumericaScene];
 };
 
-export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX.Element | null {
+export function LineaNumericaEspacialComponent(
+  props: ChallengeComponentProps,
+): JSX.Element | null {
   const { manifest, studentCode, sessionId, onComplete, onTelemetry } = props;
 
   const [phase, setPhase] = useState<Phase>("intro");
@@ -46,6 +48,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   const [diagLikert, setDiagLikert] = useState<LikertScore | null>(null);
   const [activePracticeLevel, setActivePracticeLevel] = useState<PracticeLevel | null>(null);
   const [practiceSummary, setPracticeSummary] = useState<PracticeSummary | null>(null);
+  const [completedLevels, setCompletedLevels] = useState<Set<PracticeLevel>>(new Set());
 
   const telemetry = useMemo(
     () => new TelemetryClient({ endpoint: "/api/telemetry", maxBatchSize: 30 }),
@@ -82,12 +85,13 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
     (summary: { hits: number; errors: number; meanRTms: number }) => {
       if (activePracticeLevel == null) return;
       setPracticeSummary({ level: activePracticeLevel, ...summary });
+      setCompletedLevels((prev) => new Set([...prev, activePracticeLevel]));
       setPhase("practice-result");
     },
     [activePracticeLevel],
   );
 
-  const diagnosticInitData = useMemo<CazaDeLetrasEspejoRuntime>(
+  const diagnosticInitData = useMemo<LineaNumericaRuntime>(
     () => ({
       challengeId: manifest.id,
       studentCode,
@@ -108,7 +112,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
     ],
   );
 
-  const practiceInitData = useMemo<CazaDeLetrasEspejoRuntime | null>(() => {
+  const practiceInitData = useMemo<LineaNumericaRuntime | null>(() => {
     if (activePracticeLevel == null) return null;
     return {
       challengeId: manifest.id,
@@ -116,9 +120,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
       sessionId,
       diagnosticMode: false,
       diagnosticDurationSec: 0,
-      onComplete: () => {
-        // Practice no produce score Likert. No-op.
-      },
+      onComplete: () => {},
       onTelemetry: handleTelemetry,
       mode: "practice",
       practiceLevel: activePracticeLevel,
@@ -140,7 +142,6 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
     if (!diagRaw || diagLikert == null) return;
     setPhase("persisting");
     const finalRaw: ChallengeRawResult = { ...diagRaw, studentFeedback: fb };
-
     try {
       await enqueueResult({
         challengeId: manifest.id,
@@ -152,15 +153,13 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
         attemptCount: 1,
       });
     } catch (e) {
-      console.warn("[caza-de-letras] enqueueResult failed (continuando)", e);
+      console.warn("[linea-numerica-espacial] enqueueResult failed (continuando)", e);
     }
-
     fetch("/api/challenge/result", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ raw: finalRaw, likertScore: diagLikert }),
-    }).catch((e) => console.warn("[caza-de-letras] POST result failed", e));
-
+    }).catch((e) => console.warn("[linea-numerica-espacial] POST result failed", e));
     onComplete(finalRaw);
     telemetry.flush().catch(() => {});
     setPhase("practice-menu");
@@ -180,7 +179,11 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   if (phase === "diagnostic") {
     return (
       <ChallengeShell title={META.title}>
-        <PhaserMount loadScenes={loadCazaScenes} sceneInitData={diagnosticInitData} />
+        <PhaserMount
+          loadScenes={loadLineaScenes}
+          sceneInitData={diagnosticInitData}
+          backgroundColor="#0F172A"
+        />
       </ChallengeShell>
     );
   }
@@ -197,8 +200,8 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
 
   if (phase === "persisting") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md items-center justify-center bg-[#FAF7F2] p-12 text-center text-neutral-600">
-        Guardando tu sesión…
+      <main className="mx-auto flex min-h-screen max-w-md items-center justify-center bg-[#0F172A] p-12 text-center text-cyan-200/70">
+        Guardando registro…
       </main>
     );
   }
@@ -208,7 +211,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
       <PracticeMenu
         onSelect={startPractice}
         onDone={() => setPhase("done")}
-        completedLevels={practiceSummary ? new Set([practiceSummary.level]) : new Set()}
+        completedLevels={completedLevels}
       />
     );
   }
@@ -216,7 +219,11 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
   if (phase === "practice-running" && practiceInitData) {
     return (
       <ChallengeShell title={`${META.title} · ${PRACTICE_LEVEL_TITLES[activePracticeLevel!]}`}>
-        <PhaserMount loadScenes={loadCazaScenes} sceneInitData={practiceInitData} />
+        <PhaserMount
+          loadScenes={loadLineaScenes}
+          sceneInitData={practiceInitData}
+          backgroundColor="#0F172A"
+        />
       </ChallengeShell>
     );
   }
@@ -242,7 +249,7 @@ export function CazaDeLetrasEspejoComponent(props: ChallengeComponentProps): JSX
 }
 
 // ============================================================================
-// Subcomponentes inline
+// Subcomponentes — Estación Orbital del Aprendizaje
 // ============================================================================
 
 function ChallengeShell({
@@ -253,10 +260,12 @@ function ChallengeShell({
   children: React.ReactNode;
 }): JSX.Element {
   return (
-    <main className="min-h-screen bg-[#FAF7F2] p-4 sm:p-8">
+    <main className="min-h-screen bg-[#0F172A] p-4 font-inter text-slate-100 sm:p-8">
       <header className="mx-auto mb-4 max-w-4xl">
-        <p className="text-xs uppercase tracking-wide text-indigo-600">Torre de las Letras</p>
-        <h1 className="font-fredoka text-xl font-semibold text-neutral-900">{title}</h1>
+        <p className="font-orbitron text-xs uppercase tracking-[0.2em] text-cyan-400">
+          Estación Orbital del Aprendizaje
+        </p>
+        <h1 className="font-orbitron text-xl font-bold text-slate-100">{title}</h1>
       </header>
       <section className="mx-auto max-w-4xl">{children}</section>
     </main>
@@ -265,31 +274,46 @@ function ChallengeShell({
 
 function IntroScreen({ onStart }: { onStart: () => void }): JSX.Element {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 bg-[#FAF7F2] p-6 text-center">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-32 w-32" />
-      <h1 className="font-fredoka text-3xl font-bold text-indigo-700">{META.title}</h1>
-      <p className="text-base text-neutral-700">
-        ¡Hola! Soy <strong>El Loro Sabio</strong>. Vamos a hacer un juego rápido.
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 bg-[#0F172A] p-6 text-center font-inter text-slate-100">
+      <img
+        src={ASSETS.mascot}
+        alt="ZARA"
+        className="h-32 w-32 drop-shadow-[0_0_24px_rgba(217,70,239,0.4)]"
+      />
+      <h1 className="font-fredoka font-orbitron text-4xl font-bold text-cyan-300">
+        {META.title}
+      </h1>
+      <p className="text-base text-slate-300">
+        Soy <strong className="text-cyan-300">ZARA</strong>, navegante numérica. Necesito tu
+        intuición espacial.
       </p>
-      <div className="rounded-lg bg-white p-6 text-left shadow-sm">
-        <p className="mb-3 font-medium text-neutral-800">Reglas:</p>
-        <ul className="space-y-2 text-sm text-neutral-700">
-          <li>👀 Vas a ver letras aparecer una a una.</li>
+      <div className="rounded-lg border border-cyan-400/30 bg-slate-800/50 p-6 text-left shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+        <p className="mb-3 font-orbitron text-sm uppercase tracking-wider text-cyan-300">
+          Protocolo de misión:
+        </p>
+        <ul className="space-y-2 text-sm text-slate-300">
           <li>
-            👇 Toca <strong>solo cuando veas la letra B</strong>.
+            <span className="text-cyan-300">▸</span> Vas a ver un{" "}
+            <strong className="text-cyan-300">número objetivo</strong> y una línea con extremos
+            (ej. 0 y 100).
           </li>
           <li>
-            ⛔ <strong>NO toques</strong> si ves d, p o q. ¡Se parecen pero no son!
+            <span className="text-cyan-300">▸</span> Arrastra el{" "}
+            <strong className="text-fuchsia-400">marcador</strong> a la posición que crees
+            correcta. No hay que confirmar — el primer juicio cuenta.
           </li>
-          <li>⏱️ Dura 3 minutos. Va lento, tómate tu tiempo.</li>
+          <li>
+            <span className="text-cyan-300">▸</span> Dura 3 minutos. Confía en tu intuición
+            espacial.
+          </li>
         </ul>
       </div>
       <button
         type="button"
         onClick={onStart}
-        className="rounded-md bg-indigo-600 px-8 py-3 text-base font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        className="rounded-md border border-cyan-400 bg-cyan-500/20 px-8 py-3 font-orbitron text-base font-bold uppercase tracking-wider text-cyan-200 shadow-[0_0_20px_rgba(6,182,212,0.4)] transition hover:bg-cyan-500/40 focus:outline-none focus:ring-2 focus:ring-cyan-300"
       >
-        ¡Empezar!
+        Iniciar misión
       </button>
     </main>
   );
@@ -308,31 +332,50 @@ function ResultScreen({
     raw.responseTimes.length > 0
       ? Math.round(raw.responseTimes.reduce((a, b) => a + b, 0) / raw.responseTimes.length)
       : 0;
-  const meta = raw.metadata as { commissions?: number; omissions?: number } | undefined;
+  const meta = raw.metadata as
+    | {
+        totalTrials?: number;
+        near?: number;
+        far?: number;
+        omissions?: number;
+        meanErrorPct?: number;
+      }
+    | undefined;
+
+  const errPct = Math.round((meta?.meanErrorPct ?? 0) * 100);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-5 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-24 w-24" />
-      <h1 className="font-fredoka text-2xl font-bold text-indigo-700">¡Listo!</h1>
-      <p className="text-sm text-neutral-600">Esto es lo que vimos en tu sesión:</p>
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-5 bg-[#0F172A] p-6 font-inter text-slate-100">
+      <img src={ASSETS.mascot} alt="ZARA" className="h-24 w-24" />
+      <h1 className="font-orbitron text-2xl font-bold text-cyan-300">Misión completada</h1>
+      <p className="text-sm text-slate-400">Reporte de la sesión:</p>
 
       <div className="grid w-full grid-cols-2 gap-4">
-        <Stat label="Aciertos" value={raw.hits} />
-        <Stat label="Falsas alarmas" value={meta?.commissions ?? 0} />
-        <Stat label="Omisiones" value={meta?.omissions ?? 0} />
-        <Stat label="Tiempo medio (ms)" value={meanRT} />
+        <Stat label="Precisos" value={raw.hits} accent="cyan" />
+        <Stat label="Cerca" value={meta?.near ?? 0} accent="amber" />
+        <Stat label="Lejos" value={meta?.far ?? 0} accent="magenta" />
+        <Stat label="Omisiones" value={meta?.omissions ?? 0} accent="amber" />
       </div>
 
-      <div className="mt-2 rounded-lg bg-white p-4 text-center shadow-sm">
-        <p className="text-xs uppercase tracking-wide text-neutral-500">Indicador (provisional)</p>
-        <p className="mt-1 text-3xl font-bold text-indigo-700">{LIKERT_LABELS[likert]}</p>
-        <p className="mt-1 text-xs text-neutral-500">Likert {likert}/3</p>
+      <div className="grid w-full grid-cols-2 gap-4">
+        <Stat label="Error medio (%)" value={errPct} accent="cyan" />
+        <Stat label="Tiempo medio (ms)" value={meanRT} accent="cyan" />
+      </div>
+
+      <div className="mt-2 rounded-lg border border-cyan-400/30 bg-slate-800/60 p-4 text-center shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+        <p className="font-orbitron text-xs uppercase tracking-wider text-slate-400">
+          Indicador (provisional)
+        </p>
+        <p className="mt-1 font-orbitron text-3xl font-bold text-cyan-300">
+          {LIKERT_LABELS[likert]}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">Likert {likert}/3</p>
       </div>
 
       <button
         type="button"
         onClick={onContinue}
-        className="mt-2 rounded-md bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+        className="mt-2 rounded-md border border-cyan-400 bg-cyan-500/20 px-6 py-2 font-orbitron text-sm font-bold uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/40"
       >
         Continuar
       </button>
@@ -340,11 +383,25 @@ function ResultScreen({
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }): JSX.Element {
+function Stat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent: "cyan" | "magenta" | "amber";
+}): JSX.Element {
+  const accentClass =
+    accent === "cyan"
+      ? "border-cyan-400/30 text-cyan-300"
+      : accent === "magenta"
+        ? "border-fuchsia-400/30 text-fuchsia-300"
+        : "border-amber-400/30 text-amber-300";
   return (
-    <div className="rounded-md bg-white p-3 text-center shadow-sm">
-      <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-neutral-900">{value}</p>
+    <div className={`rounded-md border bg-slate-800/40 p-3 text-center ${accentClass}`}>
+      <p className="font-orbitron text-xs uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="mt-1 font-orbitron text-2xl font-bold">{value}</p>
     </div>
   );
 }
@@ -358,21 +415,20 @@ function FeedbackScreen({
   const [enjoyment, setEnjoyment] = useState<1 | 2 | 3 | 4 | 5>(3);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 bg-[#FAF7F2] p-6">
-      <h2 className="font-fredoka text-xl font-semibold text-neutral-900">Dos preguntas más:</h2>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 bg-[#0F172A] p-6 font-inter text-slate-100">
+      <h2 className="font-orbitron text-xl font-bold text-cyan-300">Dos preguntas más:</h2>
 
       <Likert5Picker
-        label="¿Qué tan fácil o difícil fue?"
+        label="¿Qué tan difícil fue?"
         leftLabel="Muy fácil"
         rightLabel="Muy difícil"
         value={difficulty}
         onChange={setDifficulty}
       />
-
       <Likert5Picker
-        label="¿Te gustó?"
-        leftLabel="Nada"
-        rightLabel="Mucho"
+        label="¿Qué tan interesante te pareció?"
+        leftLabel="Aburrido"
+        rightLabel="Muy interesante"
         value={enjoyment}
         onChange={setEnjoyment}
       />
@@ -380,7 +436,7 @@ function FeedbackScreen({
       <button
         type="button"
         onClick={() => onSubmit({ difficulty, enjoyment })}
-        className="mt-2 rounded-md bg-indigo-600 px-6 py-3 text-base font-semibold text-white hover:bg-indigo-700"
+        className="mt-2 rounded-md border border-cyan-400 bg-cyan-500/20 px-6 py-3 font-orbitron text-base font-bold uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/40"
       >
         Enviar
       </button>
@@ -403,24 +459,24 @@ function Likert5Picker({
 }): JSX.Element {
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-neutral-800">{label}</p>
+      <p className="mb-2 text-sm font-medium text-slate-200">{label}</p>
       <div className="flex justify-between gap-2">
         {([1, 2, 3, 4, 5] as const).map((v) => (
           <button
             key={v}
             type="button"
             onClick={() => onChange(v)}
-            className={`flex-1 rounded-md border px-3 py-3 text-base font-semibold ${
+            className={`flex-1 rounded-md border px-3 py-3 font-orbitron text-base font-bold ${
               value === v
-                ? "border-indigo-600 bg-indigo-600 text-white"
-                : "border-neutral-300 bg-white text-neutral-700"
+                ? "border-cyan-400 bg-cyan-500/30 text-cyan-100"
+                : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-cyan-500"
             }`}
           >
             {v}
           </button>
         ))}
       </div>
-      <div className="mt-1 flex justify-between text-xs text-neutral-500">
+      <div className="mt-1 flex justify-between text-xs text-slate-500">
         <span>{leftLabel}</span>
         <span>{rightLabel}</span>
       </div>
@@ -438,11 +494,13 @@ function PracticeMenu({
   completedLevels: Set<PracticeLevel>;
 }): JSX.Element {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="mx-auto h-24 w-24" />
-      <h2 className="font-fredoka text-center text-xl font-bold text-indigo-700">¡Buen trabajo!</h2>
-      <p className="text-center text-sm text-neutral-600">
-        ¿Quieres practicar más? Estos niveles son solo para divertirte y NO afectan tu resultado.
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 bg-[#0F172A] p-6 font-inter text-slate-100">
+      <img src={ASSETS.mascot} alt="ZARA" className="mx-auto h-24 w-24" />
+      <h2 className="text-center font-orbitron text-xl font-bold text-cyan-300">
+        Misiones de práctica
+      </h2>
+      <p className="text-center text-sm text-slate-400">
+        Estas misiones entrenan distintos rangos numéricos y NO afectan tu indicador.
       </p>
 
       <div className="grid grid-cols-1 gap-2">
@@ -453,15 +511,15 @@ function PracticeMenu({
             onClick={() => onSelect(level)}
             className={`flex items-center justify-between rounded-md border px-4 py-3 text-left ${
               completedLevels.has(level)
-                ? "border-emerald-300 bg-emerald-50"
-                : "border-neutral-300 bg-white"
-            } hover:border-indigo-400`}
+                ? "border-emerald-400/40 bg-emerald-500/10"
+                : "border-slate-700 bg-slate-800/40"
+            } hover:border-cyan-400`}
           >
-            <span className="text-sm font-medium text-neutral-800">
+            <span className="text-sm font-medium text-slate-200">
               {PRACTICE_LEVEL_TITLES[level]}
             </span>
-            <span className="text-xs text-neutral-500">
-              {completedLevels.has(level) ? "✓" : "→"}
+            <span className="font-orbitron text-xs text-slate-500">
+              {completedLevels.has(level) ? "✓" : "▸"}
             </span>
           </button>
         ))}
@@ -470,9 +528,9 @@ function PracticeMenu({
       <button
         type="button"
         onClick={onDone}
-        className="mt-2 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+        className="mt-2 rounded-md border border-slate-700 bg-slate-800/30 px-4 py-2 font-orbitron text-sm font-bold uppercase tracking-wider text-slate-400 hover:bg-slate-800/60"
       >
-        Terminar
+        Salir
       </button>
     </main>
   );
@@ -486,18 +544,18 @@ function PracticeResultScreen({
   onContinue: () => void;
 }): JSX.Element {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#FAF7F2] p-6">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-20 w-20" />
-      <h2 className="font-fredoka text-xl font-bold text-emerald-700">¡Nivel completado!</h2>
-      <p className="text-sm text-neutral-600">{PRACTICE_LEVEL_TITLES[summary.level]}</p>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#0F172A] p-6 font-inter text-slate-100">
+      <img src={ASSETS.mascot} alt="ZARA" className="h-20 w-20" />
+      <h2 className="font-orbitron text-xl font-bold text-emerald-400">Misión completada</h2>
+      <p className="text-sm text-slate-400">{PRACTICE_LEVEL_TITLES[summary.level]}</p>
       <div className="grid w-full grid-cols-2 gap-3">
-        <Stat label="Aciertos" value={summary.hits} />
-        <Stat label="Errores" value={summary.errors} />
+        <Stat label="Precisos" value={summary.hits} accent="cyan" />
+        <Stat label="Errores" value={summary.errors} accent="magenta" />
       </div>
       <button
         type="button"
         onClick={onContinue}
-        className="mt-2 rounded-md bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+        className="mt-2 rounded-md border border-cyan-400 bg-cyan-500/20 px-6 py-2 font-orbitron text-sm font-bold uppercase tracking-wider text-cyan-200 hover:bg-cyan-500/40"
       >
         Volver al menú
       </button>
@@ -507,11 +565,11 @@ function PracticeResultScreen({
 
 function DoneScreen(): JSX.Element {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#FAF7F2] p-6 text-center">
-      <img src={ASSETS.mascot} alt="El Loro Sabio" className="h-32 w-32" />
-      <h1 className="font-fredoka text-2xl font-bold text-indigo-700">¡Gracias por jugar!</h1>
-      <p className="text-base text-neutral-700">
-        El Loro Sabio guardó tu sesión. Puedes cerrar esta pestaña.
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 bg-[#0F172A] p-6 text-center font-inter text-slate-100">
+      <img src={ASSETS.mascot} alt="ZARA" className="h-32 w-32" />
+      <h1 className="font-orbitron text-2xl font-bold text-cyan-300">Sesión cerrada</h1>
+      <p className="text-base text-slate-300">
+        ZARA registró tu desempeño. Puedes cerrar esta pestaña.
       </p>
     </main>
   );

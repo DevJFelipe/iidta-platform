@@ -1,4 +1,10 @@
 import type { ChallengeManifest } from "@iidta/core/scoring";
+import { detectiveOrtograficoManifest } from "./dislexia/detective-ortografico/manifest";
+import { lineaNumericaEspacialManifest } from "./discalculia/linea-numerica-espacial/manifest";
 
-// TODO PROMPT 4+: agregar los 30 retos de Secundaria (II-TABAS, ítems S-).
-export const MANIFESTS: ChallengeManifest[] = [];
+export { detectiveOrtograficoManifest, lineaNumericaEspacialManifest };
+
+export const MANIFESTS: ChallengeManifest[] = [
+  detectiveOrtograficoManifest,
+  lineaNumericaEspacialManifest,
+];
