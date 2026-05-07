@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { Fredoka, Nunito, Orbitron, Inter } from "next/font/google";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -13,10 +14,36 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-// Fredoka/Nunito (primaria) se cargan desde el CDN de Google Fonts en el <head>
-// con su nombre canónico, no como `__Fredoka_<hash>`. Esto permite que el canvas
-// Phaser use `font-family: "Fredoka"` directamente desde la scene. La penalty
-// de no auto-hospedar es aceptable para piloto; Workbox cachea ambos recursos.
+// Fredoka (títulos primaria) y Nunito (cuerpo primaria, base 18px) —
+// CLAUDE.md sección "Identidad visual". next/font self-hostea las fuentes
+// y el canvas Phaser puede usarlas vía nombre canónico ("Fredoka", "Nunito").
+const fredoka = Fredoka({
+  subsets: ["latin"],
+  variable: "--font-fredoka",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-nunito",
+  display: "swap",
+  weight: ["400", "600", "700"],
+});
+
+// Orbitron (títulos secundaria, sci-fi) + Inter (cuerpo secundaria, base 16px)
+// — CLAUDE.md sección "Identidad visual" / Estación Orbital del Aprendizaje.
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  variable: "--font-orbitron",
+  display: "swap",
+  weight: ["400", "500", "700", "900"],
+});
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "IIDTA Platform",
@@ -44,15 +71,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap"
-        />
-      </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>{children}</body>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${fredoka.variable} ${nunito.variable} ${orbitron.variable} ${inter.variable} font-nunito text-[18px] antialiased`}
+      >
+        {children}
+      </body>
     </html>
   );
 }

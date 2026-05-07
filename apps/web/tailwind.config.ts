@@ -17,8 +17,10 @@ const config: Config = {
         foreground: "var(--foreground)",
       },
       fontFamily: {
-        fredoka: ['"Fredoka"', "system-ui", "sans-serif"],
-        nunito: ['"Nunito"', "system-ui", "sans-serif"],
+        fredoka: ["var(--font-fredoka)", "system-ui", "sans-serif"],
+        nunito: ["var(--font-nunito)", "system-ui", "sans-serif"],
+        orbitron: ["var(--font-orbitron)", "system-ui", "sans-serif"],
+        inter: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
     },
   },
