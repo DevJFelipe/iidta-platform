@@ -7,9 +7,10 @@ export async function enqueueResult(
 ): Promise<number> {
   const db = getDb();
   const id = await db.pendingResults.add({ ...result, syncedAt: 0 });
-  await registerBackgroundSync().catch(() => {
-    // Background Sync no soportado — el flush manual cubre el caso
-  });
+  // Background Sync es best-effort y NO bloqueante. `navigator.serviceWorker.ready`
+  // queda pending forever si no hay SW registrado (modo dev sin PWA). Por eso
+  // no awaitamos: el flush manual cubre el caso si el SW nunca llega.
+  void registerBackgroundSync().catch(() => {});
   return id as number;
 }
 
@@ -27,7 +28,13 @@ export async function markSynced(ids: number[]): Promise<void> {
 export async function registerBackgroundSync(): Promise<void> {
   if (typeof navigator === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
-  const reg = await navigator.serviceWorker.ready;
+  // navigator.serviceWorker.ready queda pending forever si no hay SW registrado.
+  // Race con timeout de 1s para liberar la promise en modo dev sin PWA.
+  const reg = await Promise.race<ServiceWorkerRegistration | null>([
+    navigator.serviceWorker.ready,
+    new Promise((resolve) => setTimeout(() => resolve(null), 1000)),
+  ]);
+  if (!reg) return;
   const swReg = reg as ServiceWorkerRegistration & {
     sync?: { register: (tag: string) => Promise<void> };
   };

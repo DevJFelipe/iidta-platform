@@ -53,7 +53,14 @@ export interface ChallengeManifest {
   id: string;
   level: Level;
   dimension: Dimension;
+  /** Ítem primario del instrumento (back-compat). Para retos multi-ítem usar también `itemCodes`. */
   itemCode: string;
+  /**
+   * Lista completa de ítems del instrumento que el reto cubre.
+   * Si se omite, se asume `[itemCode]`. Algunos retos cubren 2-3 ítems
+   * (e.g. C1 + C3 en Línea numérica espacial).
+   */
+  itemCodes?: readonly string[];
   title: string;
   description?: string;
   diagnosticDuration: number;

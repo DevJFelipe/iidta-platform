@@ -21,7 +21,7 @@ Voy a auditar un reto del proyecto IIDTA para verificar que cumple todos los req
    **Contenido:**
    - [ ] El `itemCode` mapea a un ítem real del instrumento (verificar contra CLAUDE.md sección "Los 90 retos")
    - [ ] Existe la **fase diagnóstica de 180 segundos** con parámetros fijos
-   - [ ] Existen los **niveles de práctica** apropiados para el nivel educativo (5 primaria, 7 secundaria, 3 actos media)
+   - [ ] Existen los **niveles de práctica** apropiados para el nivel educativo (5 niveles primaria/secundaria, 3 actos media — según PROMPT 4)
    - [ ] La rúbrica convierte crudo → 0-3 con z-score
    - [ ] La telemetría registra: aciertos, errores, tiempo respuesta, intentos (max 2), feedback final
 
