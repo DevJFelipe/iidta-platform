@@ -306,15 +306,65 @@ La rúbrica vive en rubric.ts por reto y es ajustable sin recompilar.
 
 ## 📋 Estado actual del proyecto
 
+**Última actualización:** 2026-05-07
+
+### Hitos previos
+
 - [x] Reunión 1 con investigadoras: aprobaron concepto general "Academia de Héroes del Saber"
 - [x] Reunión 2 con investigadoras: pidieron **niveles de progresión, mayor complejidad, visualmente más llamativos**
 - [x] 3 prototipos HTML estáticos creados (descartados — no escalan)
 - [x] Investigación técnica completa (ver documento `Plan_Tecnico_IIDTA.md`)
-- [ ] **AHORA: construir scaffolding monorepo + core engine**
-- [ ] Demo set: 9 retos navegables (1 por dimensión × 3 niveles)
+- [x] Scaffolding monorepo + core engine
+- [ ] Demo set: **5/9 retos navegables** (1 por dimensión × 3 niveles)
 - [ ] Deploy preview en Vercel
 - [ ] Reunión 3 con investigadoras (presentar demo)
-- [ ] Producción de los 81 retos restantes
+- [ ] Producción de los 85 retos restantes
+
+### Infraestructura
+
+- ✅ Monorepo Turborepo + pnpm workspaces (7 packages)
+- ✅ Next.js 14 (App Router) + TypeScript estricto
+- ✅ Phaser 3.90 integrado vía `PhaserMount` con dynamic import client-side
+- ✅ Core engine: `BaseScene`, `ChallengeRunner`, `ChallengeManifest`, scoring (`likertMap`), telemetry (`TelemetryClient`)
+- ✅ Persistencia offline: Dexie (IndexedDB) — tablas `pendingResults`, `consents`, `progress`
+- ✅ Pantalla de consentimiento Habeas Data: `ConsentScreen` + `useConsent` hook con cache localStorage + Dexie por (level, consentVersion)
+- ✅ Tipografías cargadas vía `next/font/google`: Fredoka+Nunito (primaria 18px), Orbitron+Inter (secundaria 16px)
+- ⚠️ Service Worker / PWA: deshabilitado en dev (mode prod pendiente)
+- ❌ Deploy en Vercel (sin `vercel.json` ni `.vercel/`)
+
+### Retos por nivel y dimensión
+
+**PRIMARIA (3/30 completados):**
+
+- Dislexia: 1/10 — Caza de letras espejo (P-DI-01, ítem A1, Loro Sabio)
+- Discalculia: 1/10 — Mercado matemático (P-DC-01, ítem B4, Coni Conejo)
+- TDAH: 1/10 — Semáforo de impulsos (P-TD-01, ítem C5, Mono Mensajero)
+
+**SECUNDARIA (2/30 completados):**
+
+- Dislexia: 1/10 — Detective ortográfico (S-DI-01, ítem D5, AURA)
+- Discalculia: 1/10 — Línea numérica espacial (S-DC-01, ítems C1+C3, ZARA)
+- TDAH: 0/10 — *próximo: Cazador de distractores (S-TD-01, n-back)*
+
+**MEDIA (0/30 completados):**
+
+- Dislexia: 0/10
+- Discalculia: 0/10
+- TDAH: 0/10
+
+### Calidad técnica
+
+- TypeScript: ✅ pasa (6/6 packages)
+- ESLint: ✅ pasa (6/6 packages, 0 warnings)
+- READMEs por reto: ✅ los 5 retos implementados tienen documentación pedagógica para investigadoras
+
+### Próximos pasos sugeridos
+
+1. Implementar **S-TD-01 Cazador de distractores** (secundaria/TDAH, paradigma n-back) — siguiente según PROMPT 4
+2. Implementar los 3 retos de Media: M-DI-01 Detector de errores editoriales, M-DC-01 Simulador de presupuesto real (ambos React puro + Framer Motion), M-TD-01 Sprint de enfoque (Phaser SART)
+3. Configurar deploy en Vercel (`vercel.json` + dominio para preview con investigadoras)
+4. Habilitar Service Worker en build de producción para offline real
+5. Reunión 3 con investigadoras: presentar demo set de 9 retos navegables
 
 ---
 
